@@ -137,20 +137,24 @@ class ResultDecoder
     public function transformSearchResult(string $responseBody): array
     {
         $decoded = json_decode($responseBody, true);
-        if (!isset($decoded['quotes']) || !\is_array($decoded['quotes'])) {
+        if (! isset($decoded['quotes']) || ! \is_array($decoded['quotes'])) {
             throw new ApiException('Yahoo Search API returned an invalid response', ApiException::INVALID_RESPONSE);
         }
 
-        return array_map(function (array $item) {
-            return $this->createSearchResultFromJson($item);
-        }, $decoded['quotes']);
+        return array_filter(
+            array_map(function (array $item) {
+                return $this->createSearchResultFromJson($item);
+            }, $decoded['quotes'])
+        );
     }
 
-    private function createSearchResultFromJson(array $json): SearchResult
+    private function createSearchResultFromJson(array $json): SearchResult|null
     {
         $missingFields = array_diff(self::SEARCH_RESULT_FIELDS, array_keys($json));
+
         if ($missingFields) {
-            throw new ApiException(\sprintf('Search result is missing fields: %s', implode(', ', $missingFields)), ApiException::INVALID_RESPONSE);
+            return null;
+            //            throw new ApiException(\sprintf('Search result is missing fields: %s', implode(', ', $missingFields)), ApiException::INVALID_RESPONSE);
         }
 
         return new SearchResult(
@@ -166,7 +170,7 @@ class ResultDecoder
     public function extractCrumb(string $responseBody): string
     {
         if (preg_match('#CrumbStore":{"crumb":"(?<crumb>.+?)"}#', $responseBody, $match)) {
-            return json_decode('"'.$match['crumb'].'"');
+            return json_decode('"' . $match['crumb'] . '"');
         }
 
         throw new ApiException('Could not extract crumb from response', ApiException::MISSING_CRUMB);
@@ -197,7 +201,7 @@ class ResultDecoder
     {
         $decoded = json_decode($responseBody, true);
 
-        if ((!\is_array($decoded)) || (isset($decoded['chart']['error']))) {
+        if ((! \is_array($decoded)) || (isset($decoded['chart']['error']))) {
             throw new ApiException('Response is not a valid JSON', ApiException::INVALID_RESPONSE);
         }
 
@@ -228,13 +232,13 @@ class ResultDecoder
 
         foreach (['open', 'high', 'low', 'close', 'volume'] as $column) {
             $columnValue = $json['indicators']['quote'][0][$column][$index];
-            if (!is_numeric($columnValue) && 'null' !== $columnValue && !\is_null($columnValue)) {
+            if (! is_numeric($columnValue) && 'null' !== $columnValue && ! \is_null($columnValue)) {
                 throw new ApiException(\sprintf('Not a number in column "%s": %s', $column, $column), ApiException::INVALID_VALUE);
             }
         }
 
         $columnValue = $json['indicators']['adjclose'][0]['adjclose'][$index];
-        if (!is_numeric($columnValue) && 'null' !== $columnValue && !\is_null($columnValue)) {
+        if (! is_numeric($columnValue) && 'null' !== $columnValue && ! \is_null($columnValue)) {
             throw new ApiException(\sprintf('Not a number in column "%s": %s', 'adjclose', 'adjclose'), ApiException::INVALID_VALUE);
         }
 
@@ -251,11 +255,11 @@ class ResultDecoder
     public function transformDividendDataResult(string $responseBody): array
     {
         $decoded = json_decode($responseBody, true);
-        if ((!\is_array($decoded)) || (isset($decoded['chart']['error']))) {
+        if ((! \is_array($decoded)) || (isset($decoded['chart']['error']))) {
             throw new ApiException('Response is not a valid JSON', ApiException::INVALID_RESPONSE);
         }
 
-        if (!isset($decoded['chart']['result'][0]['events']['dividends'])) {
+        if (! isset($decoded['chart']['result'][0]['events']['dividends'])) {
             return [];
         }
 
@@ -281,11 +285,11 @@ class ResultDecoder
     public function transformSplitDataResult(string $responseBody): array
     {
         $decoded = json_decode($responseBody, true);
-        if ((!\is_array($decoded)) || (isset($decoded['chart']['error']))) {
+        if ((! \is_array($decoded)) || (isset($decoded['chart']['error']))) {
             throw new ApiException('Response is not a valid JSON', ApiException::INVALID_RESPONSE);
         }
 
-        if (!isset($decoded['chart']['result'][0]['events']['splits'])) {
+        if (! isset($decoded['chart']['result'][0]['events']['splits'])) {
             return [];
         }
 
@@ -311,7 +315,7 @@ class ResultDecoder
     public function transformQuotes(string $responseBody): array
     {
         $decoded = json_decode($responseBody, true);
-        if (!isset($decoded['quoteResponse']['result']) || !\is_array($decoded['quoteResponse']['result'])) {
+        if (! isset($decoded['quoteResponse']['result']) || ! \is_array($decoded['quoteResponse']['result'])) {
             throw new ApiException('Yahoo Search API returned an invalid result.', ApiException::INVALID_RESPONSE);
         }
 
@@ -343,7 +347,7 @@ class ResultDecoder
     public function transformQuotesSummary(string $responseBody): array
     {
         $decoded = json_decode($responseBody, true);
-        if (!isset($decoded['quoteSummary']['result']) || !\is_array($decoded['quoteSummary']['result'])) {
+        if (! isset($decoded['quoteSummary']['result']) || ! \is_array($decoded['quoteSummary']['result'])) {
             throw new ApiException('Yahoo Search API returned an invalid result.', ApiException::INVALID_RESPONSE);
         }
 
@@ -353,7 +357,7 @@ class ResultDecoder
     public function transformOptionChains(string $responseBody): array
     {
         $decoded = json_decode($responseBody, true);
-        if (!isset($decoded['optionChain']['result']) || !\is_array($decoded['optionChain']['result'])) {
+        if (! isset($decoded['optionChain']['result']) || ! \is_array($decoded['optionChain']['result'])) {
             throw new ApiException('Yahoo Search API returned an invalid result.', ApiException::INVALID_RESPONSE);
         }
 
@@ -371,13 +375,13 @@ class ResultDecoder
     {
         $mappedValues = [];
         foreach ($json as $field => $value) {
-            if (!\array_key_exists($field, self::OPTION_CHAIN_FIELDS_MAP)) {
+            if (! \array_key_exists($field, self::OPTION_CHAIN_FIELDS_MAP)) {
                 continue;
             }
             $type = self::OPTION_CHAIN_FIELDS_MAP[$field];
             try {
                 if ('options' === $field) {
-                    if (!\is_array($value)) {
+                    if (! \is_array($value)) {
                         throw new InvalidValueException($type);
                     }
 
@@ -403,13 +407,13 @@ class ResultDecoder
     {
         $mappedValues = [];
         foreach ($json as $field => $value) {
-            if (!\array_key_exists($field, self::OPTION_FIELDS_MAP)) {
+            if (! \array_key_exists($field, self::OPTION_FIELDS_MAP)) {
                 continue;
             }
             $type = self::OPTION_FIELDS_MAP[$field];
             try {
                 if ('calls' === $field || 'puts' === $field) {
-                    if (!\is_array($value)) {
+                    if (! \is_array($value)) {
                         throw new InvalidValueException($type);
                     }
 
@@ -431,7 +435,7 @@ class ResultDecoder
     {
         $mappedValues = [];
         foreach ($values as $property => $value) {
-            if (!\array_key_exists($property, self::OPTION_CONTRACT_FIELDS_MAP)) {
+            if (! \array_key_exists($property, self::OPTION_CONTRACT_FIELDS_MAP)) {
                 continue;
             }
             try {
